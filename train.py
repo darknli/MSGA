@@ -44,7 +44,9 @@ def collection(data):
     data_batch = {}
     for k in key_list:
         vs = [d[k] for d in data]
-        data_batch[k] = torch.stack(vs, 0)
+        if isinstance(vs[0], torch.Tensor):
+            vs = torch.stack(vs, 0)
+        data_batch[k] = vs
     return data_batch
 
 

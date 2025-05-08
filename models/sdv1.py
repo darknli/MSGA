@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn.functional import binary_cross_entropy_with_logits
 import torch.nn.functional as F
 from diffusers import (AutoencoderKL, UNet2DConditionModel)
-from transformers import CLIPTextModel
+from transformers import CLIPTextModel, CLIPTokenizer
 from accelerate import Accelerator
 from peft import LoraConfig
 from .utils import str2torch_dtype, cast_training_params
@@ -21,6 +21,7 @@ class StableDiffision(torch.nn.Module):
                  ):
         super().__init__()
         self.latent_diffusion_model = None
+        self.tokenizer = None
         self.text_encoder = None
         self.vae = None
         self.lora = None
@@ -56,6 +57,9 @@ class StableDiffision(torch.nn.Module):
 
     def init_diffusion(self, config):
         pretrained_model_name_or_path = config["pretrained_model_name_or_path"]
+        self.tokenizer = CLIPTokenizer.from_pretrained(
+            pretrained_model_name_or_path, subfolder="tokenizer"
+        )
         self.text_encoder = CLIPTextModel.from_pretrained(pretrained_model_name_or_path, subfolder="text_encoder")
         self.latent_diffusion_model = UNet2DConditionModel.from_pretrained(
             pretrained_model_name_or_path, subfolder="unet", device_map="auto")
@@ -121,7 +125,11 @@ class StableDiffision(torch.nn.Module):
         bs, channel, height, width = mask.shape
         timesteps = torch.full((bs,), 500, device=self.device)
         # Get the text embedding for conditioning
-        encoder_hidden_states = self.text_encoder(batch["input_ids"].to(self.device))[0]
+        input_ids = self.tokenizer(
+            batch["prompt"], max_length=self.tokenizer.model_max_length,
+            padding="max_length", truncation=True, return_tensors="pt"
+        ).input_ids
+        encoder_hidden_states = self.text_encoder(input_ids.to(self.device))[0]
 
         model_pred = self.run_diffusion_model(latents, timesteps, encoder_hidden_states)
         logits = self.head(model_pred)

@@ -1,6 +1,5 @@
 import torch
 from torch.utils.data import Dataset
-from transformers import CLIPTokenizer
 from dataset.preprocess.pascal_context import read_pascal_context
 from torchvision.transforms import v2
 import numpy as np
@@ -75,9 +74,6 @@ class BucketDataset(Dataset):
         self.set_bucket()
         self.build_batch_indices()
         self.lambda_func = NormalImageOperator(512)
-        self.tokenizer = CLIPTokenizer.from_pretrained(
-            tokenizer_name_or_path, subfolder="tokenizer"
-        )
         self.dataset_type = dataset_type
 
     def process(self, idx):
@@ -85,19 +81,14 @@ class BucketDataset(Dataset):
         bid = self.item2bid[idx]
         w, h = self.buckets[bid]
         image = Image.open(data["image"])
-        mask_dict = torch.load(data["mask"])
+        mask_dict = torch.load(data["mask"], weights_only=True)
         if self.dataset_type == "train":
             mask_cls, mask = random.choice(list(mask_dict.items()))
         else:
             mask_cls, mask = list(mask_dict.items())[0]
         item = {"image": image, "mask": Image.fromarray(mask)}
         data_images = self.lambda_func(item, (w, h))
-        input_ids = self.tokenizer(
-            mask_cls, max_length=self.tokenizer.model_max_length,
-            padding="max_length", truncation=True, return_tensors="pt"
-        ).input_ids
-
-        output = {"input_ids": input_ids}
+        output = {"prompt": mask_cls}
         output.update(data_images)
         return output
 
