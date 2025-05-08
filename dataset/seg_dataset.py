@@ -81,7 +81,7 @@ class BucketDataset(Dataset):
         bid = self.item2bid[idx]
         w, h = self.buckets[bid]
         image = Image.open(data["image"])
-        mask_dict = torch.load(data["mask"], weights_only=True)
+        mask_dict = torch.load(data["mask"], weights_only=False)
         if self.dataset_type == "train":
             mask_cls, mask = random.choice(list(mask_dict.items()))
         else:

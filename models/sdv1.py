@@ -16,8 +16,6 @@ class StableDiffision(torch.nn.Module):
                  config_diffusion: dict,
                  config_vae: dict = None,
                  config_lora: dict = None,
-                 prediction_type: str = None,
-                 noise_offset: float = None,
                  ):
         super().__init__()
         self.latent_diffusion_model = None
@@ -25,6 +23,8 @@ class StableDiffision(torch.nn.Module):
         self.text_encoder = None
         self.vae = None
         self.lora = None
+        self.head = None
+        self.trainable_params = []
         if torch.cuda.device_count() == 1:
             self.device = "cuda"
             self.weight_dtype = torch.float16
@@ -33,27 +33,27 @@ class StableDiffision(torch.nn.Module):
             self.device = copy.deepcopy(accelerator.device)
             self.weight_dtype = str2torch_dtype(accelerator.mixed_precision, torch.float16)
             del accelerator
-        self.cache = {}
-        self.head = nn.Sequential(
-            nn.Conv2d(4, 16, 5, 1, 1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(16, 1, 5, 1, 1),
-        )
-        self.head.to(self.device, torch.float16)
-        self.trainable_params = cast_training_params(self.head)
+        self.init_head()
 
         # 保存配置
         self.config_diffusion = copy.deepcopy(config_diffusion)
         self.config_vae = copy.deepcopy(config_vae)
         self.config_lora = copy.deepcopy(config_lora)
-        self.prediction_type = prediction_type
-        self.noise_offset = noise_offset
 
         self.init_diffusion(self.config_diffusion)
         self.init_vae(self.config_vae)
         if self.config_lora:
             self.init_lora(self.config_lora)
         assert len(self.trainable_params) > 0, "No trainable parameters"
+
+    def init_head(self):
+        self.head = nn.Sequential(
+            nn.Conv2d(4, 16, 5, 1, 1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(16, 1, 5, 1, 1),
+        )
+        self.head.to(self.device, self.weight_dtype)
+        self.trainable_params.extend(cast_training_params(self.head))
 
     def init_diffusion(self, config):
         pretrained_model_name_or_path = config["pretrained_model_name_or_path"]

@@ -1,4 +1,5 @@
 from typing import Union, List
+import gc
 import torch
 
 
@@ -26,3 +27,22 @@ def cast_training_params(model: Union[torch.nn.Module, List[torch.nn.Module]],
                 param.data = param.to(dtype)
                 training_params.append(param)
     return training_params
+
+
+def flush_vram():
+    """清除显存缓存"""
+    torch.cuda.empty_cache()
+    gc.collect()
+
+
+def quantization(model):
+    """模型量化"""
+    try:
+        from optimum.quanto import freeze, qfloat8, quantize, QTensor
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError("需要安装optimum库，请执行'pip install optimum-quanto'")
+    quantization_type = qfloat8
+    print("Quantizing transformer")
+    quantize(model, weights=quantization_type)
+    freeze(model)
+    flush_vram()

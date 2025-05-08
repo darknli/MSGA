@@ -1,6 +1,6 @@
 import os.path
 
-from models.sdv1 import StableDiffision
+from models import StableDiffision, Flux
 from dataset.seg_dataset import BucketDataset
 from dataset.misc import ShuffleBucketHook
 from torch.utils.data import DataLoader
@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument(
         "--config",
         type=str,
-        default="config/sdv1.yaml",
+        default="config/flux.yaml",
         required=False,
         help="Path to config",
     )
@@ -119,9 +119,11 @@ def main():
                               num_workers=0,
                               collate_fn=collection
                               )
-
-    model = StableDiffision(config_diffusion,
-                            config_lora=config_lora)
+    if config_model["type"] == "sdv1":
+        model = StableDiffision(config_diffusion,
+                                config_lora=config_lora)
+    elif config_model["type"] == "flux":
+        model = Flux(config_diffusion, config_lora=config_lora)
 
     if config_train["use_8bit_adam"]:
         print("使用8bit")

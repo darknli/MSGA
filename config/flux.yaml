@@ -1,8 +1,9 @@
 model:
-  type: sdv1
+  type: flux
   diffusion:
-    pretrained_model_name_or_path: 'D:/stable-diffusion-v1-5'
+    pretrained_model_name_or_path: 'D:/FLUX.1-dev-bfloat16'
     train_unet: false
+    quantization: true
   lora:
     rank: 32
 
@@ -10,8 +11,8 @@ train:
   max_epoch: 30
   dataset_path:
     pascal_context
-  size: 512
-  train_batch_size: 8
+  size: 256
+  train_batch_size: 1
   num_workers: 4
 
   use_8bit_adam: false
@@ -28,6 +29,6 @@ train:
   max_to_keep: 30
   period: 10
 
-  workspace: workspace/sd_log
+  workspace: workspace/flux_log
 
   gradient_accumulation_steps: 1
